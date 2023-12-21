@@ -16,7 +16,8 @@ import matplotlib.pyplot as plt
 
 # Chargement model
 # ML flow
-model_uri = "file:///C:/Users/Nathan/Python%20Synch/Formation%20Data%20Scientist/mlruns/0/2d08e6ba80894297bf2d2770ab53dfb8/artifacts/model"
+model_uri = r"C:\Users\Nathan\Python Synch\Formation Data Scientist\P7\Appliclation\API\mlruns\2d08e6ba80894297bf2d2770ab53dfb8\artifacts\model"
+
 model = mlflow.sklearn.load_model(model_uri)
 
 # Local
@@ -178,7 +179,6 @@ async def prediction_for_all():
     df_final_final_viz["Prediction"] = prediction
     df_final_final_viz["Prediction"] = df_final_final_viz["Prediction"].astype('str')
     df_final_final_viz["SK_ID_CURR"] = df_final_final_viz["SK_ID_CURR"].astype('str')
-    print(df_final_final_viz.dtypes)
 
     return{
          "data_viz" : df_final_final_viz,
