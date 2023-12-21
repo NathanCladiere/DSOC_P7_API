@@ -27,7 +27,7 @@ preprocessor = model.named_steps['preprocessor']
 
 app = FastAPI()
 # data
-full_df_predict = pd.read_csv("./data/application_test_cleaned.csv",nrows = 10)
+full_df_predict = pd.read_csv("./data/application_test_cleaned.csv",index_col = 0)
 adress_client = pd.read_csv("./data/adress_client.csv",index_col = 0)
 # data preprocess
 full_df_predict_transformed = preprocessor.transform(full_df_predict)
