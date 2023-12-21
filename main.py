@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 # Chargement model
 # ML flow
-model_uri = "..\mlruns\2d08e6ba80894297bf2d2770ab53dfb8\artifacts\model"
+model_uri = "..\\mlruns\\2d08e6ba80894297bf2d2770ab53dfb8\\artifacts\\model"
 
 model = mlflow.sklearn.load_model(model_uri)
 
