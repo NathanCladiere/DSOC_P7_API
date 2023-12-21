@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 # Chargement model
 # ML flow
-model_uri = r"C:\Users\Nathan\Python Synch\Formation Data Scientist\P7\Appliclation\API\mlruns\2d08e6ba80894297bf2d2770ab53dfb8\artifacts\model"
+model_uri = "..\mlruns\2d08e6ba80894297bf2d2770ab53dfb8\artifacts\model"
 
 model = mlflow.sklearn.load_model(model_uri)
 
@@ -27,8 +27,8 @@ preprocessor = model.named_steps['preprocessor']
 
 app = FastAPI()
 # data
-full_df_predict = pd.read_csv(r"C:\Users\Nathan\Python Synch\Formation Data Scientist\P7\data\cleaned\application_test_cleaned.csv",nrows = 10)
-adress_client = pd.read_csv(r"C:\Users\Nathan\Python Synch\Formation Data Scientist\P7\data\cleaned\adress_client.csv",index_col = 0)
+full_df_predict = pd.read_csv("..\data\application_test_cleaned.csv",nrows = 10)
+adress_client = pd.read_csv("..\data\adress_client.csv",index_col = 0)
 # data preprocess
 full_df_predict_transformed = preprocessor.transform(full_df_predict)
 
