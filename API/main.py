@@ -1,0 +1,186 @@
+from fastapi import FastAPI,HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from lime.lime_tabular import LimeTabularExplainer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+import mlflow.pyfunc
+import joblib
+import pandas as pd
+import numpy as np
+import base64
+from io import BytesIO
+import matplotlib.pyplot as plt
+
+# Chargement model
+# ML flow
+model_uri = "file:///C:/Users/Nathan/Python%20Synch/Formation%20Data%20Scientist/mlruns/0/2d08e6ba80894297bf2d2770ab53dfb8/artifacts/model"
+model = mlflow.sklearn.load_model(model_uri)
+
+# Local
+#model = joblib.load(r"C:\Users\Nathan\Python Synch\Formation Data Scientist\P7\API\ModelRapide.pkl")
+# Extraire le préprocesseur
+preprocessor = model.named_steps['preprocessor']
+
+app = FastAPI()
+# data
+full_df_predict = pd.read_csv(r"C:\Users\Nathan\Python Synch\Formation Data Scientist\P7\data\cleaned\application_test_cleaned.csv",nrows = 10)
+adress_client = pd.read_csv(r"C:\Users\Nathan\Python Synch\Formation Data Scientist\P7\data\cleaned\adress_client.csv",index_col = 0)
+# data preprocess
+full_df_predict_transformed = preprocessor.transform(full_df_predict)
+
+# Obtenir les transformateurs du préprocesseur
+transformers = preprocessor.named_transformers_
+
+# Supposons que preprocessor soit votre ColumnTransformer
+if isinstance(preprocessor, ColumnTransformer):
+    num_cols = []
+    cat_cols = []
+
+    # Extraction des noms de colonnes pour chaque transformateur
+    for name, transformer, column in preprocessor.transformers_:
+        if name == 'num':
+            num_cols.extend(column)  # Ajouter les noms des colonnes numériques
+        elif name == 'cat':
+            # Pour OneHotEncoder, obtenir les noms de colonnes modifiés
+            if column:  # Si la liste des colonnes catégorielles n'est pas vide
+                if hasattr(transformer, 'named_steps') and 'onehot' in transformer.named_steps:
+                    onehot_encoder = transformer.named_steps['onehot']
+                    cat_cols.extend(onehot_encoder.get_feature_names_out(column))
+                else:
+                    cat_cols.extend(column)  # Ajouter les noms des colonnes catégorielles
+    all_columns = np.concatenate([num_cols, cat_cols])
+
+
+# Créer un DataFrame avec les données transformées
+full_df_predict_transformed_df = pd.DataFrame(full_df_predict_transformed, columns=all_columns)
+
+# Initialiser l'Explainer LIME (peut être fait dans un bloc de démarrage ou global)
+explainer = LimeTabularExplainer(full_df_predict_transformed_df.values, 
+                                 feature_names=full_df_predict_transformed_df.columns, 
+                                 class_names=['0', '1'], 
+                                 verbose=True, 
+                                 mode='classification',
+                                 discretize_continuous=False)
+
+full_df_predict_transformed_df['SK_ID_CURR']=full_df_predict['SK_ID_CURR']
+
+# Fonction de prédiction personnalisée pour LIME
+def custom_predict_fn(data_as_np_array):
+    data_as_df = pd.DataFrame(data_as_np_array, columns=[col for col in full_df_predict_transformed_df.columns if col != 'SK_ID_CURR'])
+    return model.predict_proba(data_as_df)
+
+class ClientRequest(BaseModel):
+    client_id: int
+
+@app.get('/list_client')
+def list_client():
+    all_client = full_df_predict.SK_ID_CURR.to_list()
+    return all_client
+
+@app.post('/client_adress')
+async def predict_for_client(request: ClientRequest):
+     client_data_ad = adress_client[adress_client['SK_ID_CURR'] == request.client_id]
+     fname = client_data_ad["First Name"].values[0]
+     lname = client_data_ad["Last Name"].values[0]
+     adclient = client_data_ad["Address"].values[0]
+
+     return {
+         "client_id" : request.client_id,
+         "first_name":fname,
+         "last_name": lname,
+         "adress": adclient
+     }
+
+@app.post('/predict_for_client')
+async def predict_for_client(request: ClientRequest):
+    # Charger les données du client spécifique ici
+    client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
+    client_data_LIME = full_df_predict_transformed_df[full_df_predict_transformed_df['SK_ID_CURR'] == request.client_id]
+    client_data_LIME.drop(['SK_ID_CURR'],axis = 1 ,inplace = True)
+
+    # Effectuer la prédiction
+    prediction = model.predict(client_data)
+
+    # Calculer l'explication LIME pour le client spécifique
+    exp = explainer.explain_instance(client_data_LIME.values[0], custom_predict_fn)
+    right_score = exp.predict_proba[1]
+    right_score = float(right_score)
+
+    # Extraire les importances locales et les noms de caractéristiques
+    local_importance = exp.as_list()
+
+    # Créer un DataFrame pour l'importance locale
+    local_importance_df = pd.DataFrame(local_importance, columns=["Feature", "Importance"])
+
+    # Générer le graphique d'importance locale
+    fig = exp.as_pyplot_figure()
+    ax = fig.get_axes()[0]  # Récupérer les Axes pour personnalisation si nécessaire
+    # Paramètres de style
+    ax.set_facecolor('none')  # Fond transparent
+    plt.setp(ax.get_xticklabels(), fontweight='bold', color='white')  # Écriture grasse et blanche pour les ticks x
+    plt.setp(ax.get_yticklabels(), fontweight='bold', color='white')  # Écriture grasse et blanche pour les ticks y
+    ax.xaxis.label.set_color('white')  # Couleur de l'étiquette axe x
+    ax.yaxis.label.set_color('white')  # Couleur de l'étiquette axe y
+    ax.title.set_color('white')  # Couleur du titre
+
+    # Si vous avez des légendes ou d'autres textes, réglez-les également en blanc
+    if ax.get_legend() is not None:
+        plt.setp(ax.get_legend().get_texts(), color='white')
+
+    # Enregistrez le graphique avec un fond transparent
+    buf = BytesIO()
+    plt.savefig(buf, format="png", bbox_inches='tight', transparent=True)
+    buf.seek(0)
+    image_png = buf.getvalue()
+    buf.close()
+
+    # Fermez la figure pour libérer la mémoire
+    plt.close(fig)
+
+    # Encoder l'image en base64 pour la transmission via API
+    encoded_image = base64.b64encode(image_png).decode("utf-8")
+
+
+    return {
+        "lime_importance_plot": encoded_image,  # Image encodée en base64    
+        "right_score": right_score,
+        "client_id": request.client_id,
+        "prediction": prediction.tolist(),
+        "local_importance": local_importance_df.to_dict(),  # Retourner l'importance locale sous forme de dictionnaire 
+    }
+
+@app.get("/image/{image_name}")
+async def get_image(image_name: str):
+    file_path = f"C:/Users/Nathan/Python Synch/Formation Data Scientist/P7/API/{image_name}.png"
+    try:
+        return FileResponse(file_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+
+@app.get('/prediction_for_all')
+async def prediction_for_all():
+    # copy du dataset
+    data = full_df_predict.copy()
+    list_var = full_df_predict_transformed_df.columns.tolist()
+    elements_to_remove = ["Unnamed: 0", "index", "SK_ID_CURR", "TARGET"]
+    for element in elements_to_remove:
+        if element in list_var:
+            list_var.remove(element)
+    # Predict 
+    prediction = model.predict(data)
+    # Copy df
+    df_final_final_viz = full_df_predict_transformed_df.copy()
+    # Ajout des predictions
+    df_final_final_viz["Prediction"] = prediction
+    df_final_final_viz["Prediction"] = df_final_final_viz["Prediction"].astype('str')
+    df_final_final_viz["SK_ID_CURR"] = df_final_final_viz["SK_ID_CURR"].astype('str')
+    print(df_final_final_viz.dtypes)
+
+    return{
+         "data_viz" : df_final_final_viz,
+         "list_var":list_var,
+     }
