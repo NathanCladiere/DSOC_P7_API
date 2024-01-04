@@ -70,7 +70,7 @@ explainer = LimeTabularExplainer(full_df_predict_transformed_df.values,
                                  mode='classification',
                                  discretize_continuous=False)
 
-full_df_predict_transformed_df['SK_ID_CURR']=full_df_predict['SK_ID_CURR']
+full_df_predict_transformed_df['SK_ID_CURR']=full_df_predict['SK_ID_CURR'].copy()
 
 # Fonction de prédiction personnalisée pour LIME
 def custom_predict_fn(data_as_np_array):
@@ -115,7 +115,7 @@ async def predict_for_client(request: ClientRequest):
     # Log pour débogage
     print(f"Nombre d'enregistrements trouvés dans client_data: {len(client_data)}")
     print(f"Nombre d'enregistrements trouvés dans client_data_LIME: {len(client_data_LIME)}")
-    
+
     if client_data.empty or client_data_LIME.empty:
         return {"error": "Client ID not found or no data available"}
     
