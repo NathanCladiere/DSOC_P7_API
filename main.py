@@ -85,7 +85,7 @@ def list_client():
     return all_client
 
 @app.post('/client_adress')
-async def predict_for_client(request: ClientRequest):
+async def client_adress(request: ClientRequest):
      client_data_ad = adress_client[adress_client['SK_ID_CURR'] == request.client_id]
      fname = client_data_ad["First Name"].values[0]
      lname = client_data_ad["Last Name"].values[0]
