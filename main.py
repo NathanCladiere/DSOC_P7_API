@@ -15,6 +15,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 from fastapi.responses import JSONResponse
 import json
+import logging
 
 
 # Chargement model
@@ -82,10 +83,8 @@ class ClientRequest(BaseModel):
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, float):
-            if np.isnan(obj):
-                return None  # Remplace NaN par None (qui deviendra null en JSON)
-            elif np.isinf(obj):
-                return str(obj)  # Convertit les infinis en string
+            if np.isnan(obj) or np.isinf(obj):
+                return None
         return super().default(obj)
 
 @app.get('/list_client')
@@ -109,20 +108,28 @@ async def client_adress(request: ClientRequest):
 
 @app.post('/predict_for_client')
 async def predict_for_client(request: ClientRequest):
+    try:
+        client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
+
+        if client_data.empty:
+            return {"error": "Client ID not found"}
+
+        # Assurez-vous que toutes les valeurs flottantes sont conformes
+        client_data = client_data.applymap(lambda x: None if isinstance(x, float) and (np.isnan(x) or np.isinf(x)) else x)
+
+        response_data = client_data.to_dict(orient='records')
+
+        # Convertir en JSON en utilisant l'encodeur personnalisé
+        response_json = json.dumps(response_data, cls=CustomJSONEncoder)
+        return JSONResponse(content=json.loads(response_json))
+
+    except Exception as e:
+        logging.error(f"Error in predict_for_client: {e}")
+        return {"error": str(e)}
+    
     # Charger les données du client spécifique ici
     client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
     
-    # Convertir client_data en dictionnaire pour la réponse
-    response_data = client_data.to_dict(orient='records')  # ou 'dict' selon la structure souhaitée
-    # Utiliser CustomJSONEncoder pour la réponse
-    try:
-        # Convertir response_data en JSON en utilisant l'encodeur personnalisé
-        response_json = json.dumps(response_data, cls=CustomJSONEncoder)
-        return JSONResponse(content=json.loads(response_json))
-    except Exception as e:
-        # Gérer les exceptions et renvoyer un message d'erreur
-        return {"error": str(e)}
-
     client_data_LIME = full_df_predict_transformed_df[full_df_predict_transformed_df['SK_ID_CURR'] == request.client_id]
     # Check if the DataFrame is empty
     if client_data_LIME.empty:
