@@ -155,7 +155,7 @@ async def predict_for_client(request: ClientRequest):
 
 @app.get("/image/{image_name}")
 async def get_image(image_name: str):
-    file_path = f"C:/Users/Nathan/Python Synch/Formation Data Scientist/P7/API/{image_name}.png"
+    file_path = f"./{image_name}.png"
     try:
         return FileResponse(file_path)
     except FileNotFoundError:
