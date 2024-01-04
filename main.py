@@ -100,7 +100,14 @@ async def predict_for_client(request: ClientRequest):
     # Charger les données du client spécifique ici
     client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
     client_data_LIME = full_df_predict_transformed_df[full_df_predict_transformed_df['SK_ID_CURR'] == request.client_id]
-    client_data_LIME.drop(['SK_ID_CURR'],axis = 1 ,inplace = True)
+    # Check if the DataFrame is empty
+    if client_data_LIME.empty:
+        available_clients = full_df_predict_transformed_df['SK_ID_CURR'].tolist()
+        return {
+            "error": "No data available for the specified client ID",
+            "available_clients": available_clients
+        }
+    client_data_LIME = client_data_LIME.drop(['SK_ID_CURR'], axis=1).copy()
 
     # Effectuer la prédiction
     prediction = model.predict(client_data)
