@@ -79,17 +79,6 @@ def custom_predict_fn(data_as_np_array):
 class ClientRequest(BaseModel):
     client_id: int
 
-class CustomJSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, float):
-            if obj != obj:  # Checks for NaN
-                return None
-            elif obj == float('inf'):
-                return "Infinity"
-            elif obj == float('-inf'):
-                return "-Infinity"
-        return super().default(obj)
-
 @app.get('/list_client')
 def list_client():
     all_client = full_df_predict.SK_ID_CURR.to_list()
@@ -166,16 +155,13 @@ async def predict_for_client(request: ClientRequest):
     encoded_image = base64.b64encode(image_png).decode("utf-8")
 
 
-    response_data = {
+    return {
         "lime_importance_plot": encoded_image,  # Image encodée en base64    
         "right_score": right_score,
         "client_id": request.client_id,
         "prediction": prediction.tolist(),
         "local_importance": local_importance_df.to_dict(),  # Retourner l'importance locale sous forme de dictionnaire 
     }
-    
-    return JSONResponse(content=json.loads(json.dumps(response_data, cls=CustomJSONEncoder)))
-
 
 @app.get("/image/{image_name}")
 async def get_image(image_name: str):
