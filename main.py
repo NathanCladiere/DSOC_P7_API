@@ -79,6 +79,15 @@ def custom_predict_fn(data_as_np_array):
 class ClientRequest(BaseModel):
     client_id: int
 
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, float):
+            if np.isnan(obj):
+                return None  # Remplace NaN par None (qui deviendra null en JSON)
+            elif np.isinf(obj):
+                return str(obj)  # Convertit les infinis en string
+        return super().default(obj)
+
 @app.get('/list_client')
 def list_client():
     all_client = full_df_predict.SK_ID_CURR.to_list()
@@ -103,13 +112,15 @@ async def predict_for_client(request: ClientRequest):
     # Charger les données du client spécifique ici
     client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
     
+    response_data = {client_data.to_dict()}
+
     # Vérifier si client_data est vide
     if client_data.empty:
         return {"error": "Client ID not found"}
     else:
         # Traiter les données si le client est trouvé
         # Votre logique de traitement ici
-        return {"success": "Client ID found", "data": request.client_id}
+        return {"success": "Client ID found", "data": JSONResponse(content=json.loads(json.dumps(response_data, cls=CustomJSONEncoder)))}
 
     client_data_LIME = full_df_predict_transformed_df[full_df_predict_transformed_df['SK_ID_CURR'] == request.client_id]
     # Check if the DataFrame is empty
