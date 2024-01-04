@@ -108,29 +108,13 @@ async def client_adress(request: ClientRequest):
 
 @app.post('/predict_for_client')
 async def predict_for_client(request: ClientRequest):
-    try:
-        client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
-
-        if client_data.empty:
-            return {"error": "Client ID not found"}
-
-        # Assurez-vous que toutes les valeurs flottantes sont conformes
-        client_data = client_data.applymap(lambda x: None if isinstance(x, float) and (np.isnan(x) or np.isinf(x)) else x)
-
-        response_data = client_data.to_dict(orient='records')
-
-        # Convertir en JSON en utilisant l'encodeur personnalisé
-        response_json = json.dumps(response_data, cls=CustomJSONEncoder)
-        return JSONResponse(content=json.loads(response_json))
-
-    except Exception as e:
-        logging.error(f"Error in predict_for_client: {e}")
-        return {"error": str(e)}
-    
     # Charger les données du client spécifique ici
     client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
-    
     client_data_LIME = full_df_predict_transformed_df[full_df_predict_transformed_df['SK_ID_CURR'] == request.client_id]
+
+    if client_data.empty or client_data_LIME.empty:
+        return {"error": "Client ID not found or no data available"}
+    
     client_data_LIME = client_data_LIME.drop(['SK_ID_CURR'], axis=1).copy()
 
     # Effectuer la prédiction
@@ -146,6 +130,10 @@ async def predict_for_client(request: ClientRequest):
 
     # Créer un DataFrame pour l'importance locale
     local_importance_df = pd.DataFrame(local_importance, columns=["Feature", "Importance"])
+
+    # Vérifier et remplacer les valeurs flottantes non conformes dans right_score et local_importance_df
+    right_score = None if np.isnan(right_score) or np.isinf(right_score) else float(right_score)
+    local_importance_df = local_importance_df.applymap(lambda x: None if isinstance(x, float) and (np.isnan(x) or np.isinf(x)) else x)
 
     # Générer le graphique d'importance locale
     fig = exp.as_pyplot_figure()
@@ -174,15 +162,20 @@ async def predict_for_client(request: ClientRequest):
 
     # Encoder l'image en base64 pour la transmission via API
     encoded_image = base64.b64encode(image_png).decode("utf-8")
+    try:
+        response_data = {
+            "lime_importance_plot": encoded_image,
+            "right_score": right_score,
+            "client_id": request.client_id,
+            "prediction": prediction.tolist(),
+            "local_importance": local_importance_df.to_dict()
+        }
 
-
-    return {
-        "lime_importance_plot": encoded_image,  # Image encodée en base64    
-        "right_score": right_score,
-        "client_id": request.client_id,
-        "prediction": prediction.tolist(),
-        "local_importance": local_importance_df.to_dict(),  # Retourner l'importance locale sous forme de dictionnaire 
-    }
+        response_json = json.dumps(response_data, cls=CustomJSONEncoder)
+        return JSONResponse(content=json.loads(response_json))
+    
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/image/{image_name}")
 async def get_image(image_name: str):
