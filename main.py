@@ -112,6 +112,10 @@ async def predict_for_client(request: ClientRequest):
     client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
     client_data_LIME = full_df_predict_transformed_df[full_df_predict_transformed_df['SK_ID_CURR'] == request.client_id]
 
+    # Log pour débogage
+    print(f"Nombre d'enregistrements trouvés dans client_data: {len(client_data)}")
+    print(f"Nombre d'enregistrements trouvés dans client_data_LIME: {len(client_data_LIME)}")
+    
     if client_data.empty or client_data_LIME.empty:
         return {"error": "Client ID not found or no data available"}
     
