@@ -112,15 +112,16 @@ async def predict_for_client(request: ClientRequest):
     # Charger les données du client spécifique ici
     client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
     
-    # Vérifier si client_data est vide
-    if client_data.empty:
-        return {"error": "Client ID not found"}
-
     # Convertir client_data en dictionnaire pour la réponse
     response_data = client_data.to_dict(orient='records')  # ou 'dict' selon la structure souhaitée
-
-    # Retourner les données si le client est trouvé
-    return {"success": "Client ID found", "data": response_data}
+    # Utiliser CustomJSONEncoder pour la réponse
+    try:
+        # Convertir response_data en JSON en utilisant l'encodeur personnalisé
+        response_json = json.dumps(response_data, cls=CustomJSONEncoder)
+        return JSONResponse(content=json.loads(response_json))
+    except Exception as e:
+        # Gérer les exceptions et renvoyer un message d'erreur
+        return {"error": str(e)}
 
     client_data_LIME = full_df_predict_transformed_df[full_df_predict_transformed_df['SK_ID_CURR'] == request.client_id]
     # Check if the DataFrame is empty
