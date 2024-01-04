@@ -109,7 +109,7 @@ async def predict_for_client(request: ClientRequest):
     else:
         # Traiter les données si le client est trouvé
         # Votre logique de traitement ici
-        return {"success": "Client ID found", "data": client_data.to_dict()}
+        return {"success": "Client ID found", "data": request.client_id}
 
     client_data_LIME = full_df_predict_transformed_df[full_df_predict_transformed_df['SK_ID_CURR'] == request.client_id]
     # Check if the DataFrame is empty
