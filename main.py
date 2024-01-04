@@ -112,8 +112,6 @@ async def predict_for_client(request: ClientRequest):
     # Charger les données du client spécifique ici
     client_data = full_df_predict[full_df_predict['SK_ID_CURR'] == request.client_id]
     
-    response_data = {client_data.to_dict()}
-
     # Vérifier si client_data est vide
     if client_data.empty:
         return {"error": "Client ID not found"}
