@@ -7,7 +7,7 @@ on:
 permissions:
   contents: write
   id-token: write
-  
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,16 +35,17 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    - name: Add SSH Key for Heroku
+    - name: Setup Heroku
       run: |
-        mkdir -p ~/.ssh/
-        echo "${{ secrets.HEROKU_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H heroku.com >> ~/.ssh/known_hosts
-        git remote add heroku git@heroku.com:dsoc-p7-api.git
+        echo "machine api.heroku.com login $HEROKU_EMAIL password $HEROKU_API_KEY" > ~/.netrc
+        echo "machine git.heroku.com login $HEROKU_EMAIL password $HEROKU_API_KEY" >> ~/.netrc
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        HEROKU_EMAIL: votre-email-heroku@example.com
 
     - name: Deploy to Heroku
       run: |
+        git remote add heroku https://git.heroku.com/dsoc-p7-api.git
         git push heroku API:master
 
     - name: Run Tests
