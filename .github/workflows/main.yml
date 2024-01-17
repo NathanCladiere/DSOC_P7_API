@@ -28,6 +28,8 @@ jobs:
         heroku_api_key: ${{secrets.HEROKU_API_KEY}} #The Heroku api key we stored on our repo secret
         heroku_app_name: "dsoc-p7-api" #The name of your heroku app - Must be unique in Heroku
         heroku_email: "nathan.cladiere@gmail.com" #Your heroku yuser name
+        branch: "API" # Spécifiez ici la branche à déployer
+
 
     - name: Install dependencies
       run: |
