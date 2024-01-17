@@ -21,6 +21,8 @@ jobs:
 
     - name: Copie du repo
       uses: actions/checkout@v2
+      with:
+        ref: 'API'
 
     - name: Deploiement sur heroku
       uses: akhileshns/heroku-deploy@v3.12.12 # This action deploys the content on Heroku
