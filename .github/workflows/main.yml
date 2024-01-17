@@ -39,13 +39,15 @@ jobs:
 
     - name: Add Heroku Remote
       run: |
-        heroku git:remote -a dsoc-p7-api
+        heroku git:remote -a dsoc-p7-api -r heroku
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
 
     - name: Deploy to Heroku
       run: |
         git push heroku API:master
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
 
     - name: Run Tests
       run: |
