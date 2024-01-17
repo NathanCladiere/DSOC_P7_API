@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 import json
 import logging
 
-# test
+# test1
 # Chargement model
 # ML flow
 model_uri = "./mlruns/2d08e6ba80894297bf2d2770ab53dfb8/artifacts/model"
