@@ -70,7 +70,7 @@ explainer = LimeTabularExplainer(full_df_predict_transformed_df.values,
                                  mode='classification',
                                  discretize_continuous=False)
 
-full_df_predict_transformed_df['SK_ID_CURR']=full_df_predict['SK_ID_CURR'].copy()
+full_df_predict_transformed_df['SK_ID_CURR']=full_df_predict['SK_ID_CURR'].tolist()
 
 # Fonction de prédiction personnalisée pour LIME
 def custom_predict_fn(data_as_np_array):
