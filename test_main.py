@@ -6,10 +6,9 @@ client = TestClient(app)
 def test_list_client():
     response = client.get("/list_client")
     assert response.status_code == 200
-    assert isinstance(response.json(), list)  # Supposant que la réponse est une liste d'IDs
+    assert isinstance(response.json(), list) 
 
 def test_client_adress():
-    # Remplacer 100042 par un ID client valide pour le test
     response = client.post("/client_adress", json={"client_id": 100042})
     assert response.status_code == 200
     data = response.json()
@@ -19,13 +18,12 @@ def test_client_adress():
     assert "adress" in data
 
 def test_predict_for_client():
-    # Remplacer 100042 par un ID client valide pour le test
     response = client.post("/predict_for_client", json={"client_id": 100042})
     assert response.status_code == 200
     assert "prediction" in response.json()
 
 def test_image_not_found():
-    response = client.get("/image/non_existing_image")
+    response = client.get("/get_image/non_existing_image")
     assert response.status_code == 404
 
 def test_prediction_for_all():
