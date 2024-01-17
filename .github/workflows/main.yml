@@ -13,16 +13,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Copie du repo
+      uses: actions/checkout@v3
+
     - name: Set up Python 3.9
       uses: actions/setup-python@v3
       with:
         python-version: "3.9"
-    - uses: akhileshns/heroku-deploy@v3.12.12 # This action deploys the content on Heroku
+
+    - name: Deploiement sur heroku
+      uses: akhileshns/heroku-deploy@v3.12.12 # This action deploys the content on Heroku
       with:
         heroku_api_key: ${{secrets.HEROKU_API_KEY}} #The Heroku api key we stored on our repo secret
         heroku_app_name: "dsoc-p7-api" #The name of your heroku app - Must be unique in Heroku
         heroku_email: "nathan.cladiere@gmail.com" #Your heroku yuser name
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
