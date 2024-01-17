@@ -5,8 +5,7 @@ on:
     branches: [ "API" ]
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
   build:
@@ -30,22 +29,22 @@ jobs:
           pip install -r requirements.txt
         fi
 
-    - name: Lint with flake8
+    - name: Lint with Flake8
       run: |
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    - name: Setup Heroku
+    - name: Install Heroku CLI
       run: |
-        echo "machine api.heroku.com login $HEROKU_EMAIL password $HEROKU_API_KEY" > ~/.netrc
-        echo "machine git.heroku.com login $HEROKU_EMAIL password $HEROKU_API_KEY" >> ~/.netrc
+        curl https://cli-assets.heroku.com/install.sh | sh
+
+    - name: Add Heroku Remote
+      run: |
+        heroku git:remote -a dsoc-p7-api
       env:
         HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        HEROKU_EMAIL: nathan.cladiere@gmail.com
 
     - name: Deploy to Heroku
       run: |
-        git remote add heroku https://git.heroku.com/dsoc-p7-api.git
         git push heroku API:master
 
     - name: Run Tests
