@@ -17,19 +17,16 @@ from fastapi.responses import JSONResponse
 import json
 import logging
 
-# test4
 # Chargement model
-# ML flow
 model_uri = "./mlruns/2d08e6ba80894297bf2d2770ab53dfb8/artifacts/model"
-
 model = mlflow.sklearn.load_model(model_uri)
-
 # Local
-#model = joblib.load(r"C:\Users\Nathan\Python Synch\Formation Data Scientist\P7\API\ModelRapide.pkl")
+# model = joblib.load(r"C:\Users\Nathan\Python Synch\Formation Data Scientist\P7\API\ModelRapide.pkl")
+
 # Extraire le préprocesseur
 preprocessor = model.named_steps['preprocessor']
-
 app = FastAPI()
+
 # data
 full_df_predict = pd.read_csv("./data/application_test_cleaned.csv",index_col = 0)
 adress_client = pd.read_csv("./data/adress_client.csv",index_col = 0)
@@ -39,7 +36,7 @@ full_df_predict_transformed = preprocessor.transform(full_df_predict)
 # Obtenir les transformateurs du préprocesseur
 transformers = preprocessor.named_transformers_
 
-# Supposons que preprocessor soit votre ColumnTransformer
+# Preprocessing des colonnes
 if isinstance(preprocessor, ColumnTransformer):
     num_cols = []
     cat_cols = []
@@ -55,14 +52,14 @@ if isinstance(preprocessor, ColumnTransformer):
                     onehot_encoder = transformer.named_steps['onehot']
                     cat_cols.extend(onehot_encoder.get_feature_names_out(column))
                 else:
-                    cat_cols.extend(column)  # Ajouter les noms des colonnes catégorielles
+                    cat_cols.extend(column)  # Ajoute les noms des colonnes catégorielles
     all_columns = np.concatenate([num_cols, cat_cols])
 
 
-# Créer un DataFrame avec les données transformées
+# Crée un DataFrame avec les données transformées
 full_df_predict_transformed_df = pd.DataFrame(full_df_predict_transformed, columns=all_columns)
 
-# Initialiser l'Explainer LIME (peut être fait dans un bloc de démarrage ou global)
+# Initialise l'Explainer LIME (peut être fait dans un bloc de démarrage ou global)
 explainer = LimeTabularExplainer(full_df_predict_transformed_df.values, 
                                  feature_names=full_df_predict_transformed_df.columns, 
                                  class_names=['0', '1'], 
@@ -77,9 +74,11 @@ def custom_predict_fn(data_as_np_array):
     data_as_df = pd.DataFrame(data_as_np_array, columns=[col for col in full_df_predict_transformed_df.columns if col != 'SK_ID_CURR'])
     return model.predict_proba(data_as_df)
 
+# Class pour d'identification du client
 class ClientRequest(BaseModel):
     client_id: int
 
+# Encoder pour bug encodage
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, float):
@@ -87,11 +86,13 @@ class CustomJSONEncoder(json.JSONEncoder):
                 return None
         return super().default(obj)
 
+# Fonction permettant de lister tout les ID du client
 @app.get('/list_client')
 def list_client():
     all_client = full_df_predict.SK_ID_CURR.to_list()
     return all_client
 
+# Fonction de recherche des infos clients
 @app.post('/client_adress')
 async def client_adress(request: ClientRequest):
      client_data_ad = adress_client[adress_client['SK_ID_CURR'] == request.client_id]
@@ -106,6 +107,7 @@ async def client_adress(request: ClientRequest):
          "adress": adclient
      }
 
+# Fonction de prédiction de crédit
 @app.post('/predict_for_client')
 async def predict_for_client(request: ClientRequest):
     # Charger les données du client spécifique ici
@@ -122,27 +124,28 @@ async def predict_for_client(request: ClientRequest):
     
     client_data_LIME = client_data_LIME.drop(['SK_ID_CURR'], axis=1).copy()
 
-    # Effectuer la prédiction
+    # Effectue la prédiction
     prediction = model.predict(client_data)
 
-    # Calculer l'explication LIME pour le client spécifique
+    # Calcule l'explication LIME pour le client spécifique
     exp = explainer.explain_instance(client_data_LIME.values[0], custom_predict_fn)
     right_score = exp.predict_proba[1]
     right_score = float(right_score)
 
-    # Extraire les importances locales et les noms de caractéristiques
+    # Extrait les importances locales et les noms de caractéristiques
     local_importance = exp.as_list()
 
-    # Créer un DataFrame pour l'importance locale
+    # Crée un DataFrame pour l'importance locale
     local_importance_df = pd.DataFrame(local_importance, columns=["Feature", "Importance"])
 
-    # Vérifier et remplacer les valeurs flottantes non conformes dans right_score et local_importance_df
+    # Vérifie et remplacer les valeurs flottantes non conformes dans right_score et local_importance_df
     right_score = None if np.isnan(right_score) or np.isinf(right_score) else float(right_score)
     local_importance_df = local_importance_df.applymap(lambda x: None if isinstance(x, float) and (np.isnan(x) or np.isinf(x)) else x)
 
-    # Générer le graphique d'importance locale
-    fig = exp.as_pyplot_figure()
-    ax = fig.get_axes()[0]  # Récupérer les Axes pour personnalisation si nécessaire
+    # Génère le graphique d'importance locale
+    fig, ax = plt.subplots()
+    bars = ax.barh(local_importance_df['Feature'], local_importance_df['Importance'], color=np.where(local_importance_df['Importance'] < 0, 'green', 'red'))
+
     # Paramètres de style
     ax.set_facecolor('none')  # Fond transparent
     plt.setp(ax.get_xticklabels(), fontweight='bold', color='white')  # Écriture grasse et blanche pour les ticks x
@@ -150,22 +153,23 @@ async def predict_for_client(request: ClientRequest):
     ax.xaxis.label.set_color('white')  # Couleur de l'étiquette axe x
     ax.yaxis.label.set_color('white')  # Couleur de l'étiquette axe y
     ax.title.set_color('white')  # Couleur du titre
+    plt.gca().invert_yaxis()  # Inverser l'axe y pour avoir l'importance du haut vers le bas
 
-    # Si vous avez des légendes ou d'autres textes, réglez-les également en blanc
+    # Maj des légendes 
     if ax.get_legend() is not None:
         plt.setp(ax.get_legend().get_texts(), color='white')
 
-    # Enregistrez le graphique avec un fond transparent
+    # Enregistre le graphique avec un fond transparent
     buf = BytesIO()
     plt.savefig(buf, format="png", bbox_inches='tight', transparent=True)
     buf.seek(0)
     image_png = buf.getvalue()
     buf.close()
 
-    # Fermez la figure pour libérer la mémoire
+    # Ferme la figure pour libérer la mémoire
     plt.close(fig)
 
-    # Encoder l'image en base64 pour la transmission via API
+    # Encode l'image en base64 pour la transmission via API
     encoded_image = base64.b64encode(image_png).decode("utf-8")
     try:
         response_data = {
@@ -182,6 +186,7 @@ async def predict_for_client(request: ClientRequest):
     except Exception as e:
         return {"error": str(e)}
 
+# Fonction pour récupérer une image
 @app.get("/image/{image_name}")
 async def get_image(image_name: str):
     file_path = f"./{image_name}.png"
@@ -190,7 +195,7 @@ async def get_image(image_name: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Image not found")
 
-
+# Fonction pour avoir le résultat de prédiction de tout les clients (sans détail)
 @app.get('/prediction_for_all')
 async def prediction_for_all():
     # copy du dataset
